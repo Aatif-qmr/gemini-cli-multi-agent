@@ -24,6 +24,7 @@ export interface SharedMemoryPool {
 
 const NEXUS_DIR = path.join(os.homedir(), '.gemini-nexus');
 const SHARED_MEMORY_FILE = path.join(NEXUS_DIR, 'shared-memory.json');
+const MAX_MEMORY_SIZE_CHARS = 15000; // Limit to ~2000-4000 tokens to prevent context overflow
 
 /**
  * Service to synchronize memory across multiple Gemini CLI instances
@@ -33,6 +34,10 @@ export class MemorySyncService {
   private static instance: MemorySyncService | null = null;
   private pool: SharedMemoryPool | null = null;
   private initialized = false;
+  
+  // Fix 1: Async Write Queue to prevent Race Conditions
+  private writeQueue: Promise<void> = Promise.resolve();
+  private isWriting = false;
 
   private constructor() {}
 
@@ -73,17 +78,43 @@ export class MemorySyncService {
   }
 
   /**
-   * Save the current pool to disk
+   * Save the current pool to disk (Queue + Atomic Write)
+   * Fixes: Race Conditions and Corrupted Files
    */
   private async savePool(): Promise<void> {
     if (!this.pool) return;
-    this.pool.lastSync = new Date().toISOString();
-    this.pool.version++;
-    try {
-      await fs.writeFile(SHARED_MEMORY_FILE, JSON.stringify(this.pool, null, 2), 'utf-8');
-    } catch (error) {
-      debugLogger.error(`Failed to save shared memory pool: ${error}`);
-    }
+
+    // Add to write queue to prevent race conditions
+    this.writeQueue = this.writeQueue.then(async () => {
+      this.isWriting = true;
+      try {
+        // Fix 2: Context Window Overflow (Eviction Policy)
+        // Trim oldest entries if we exceed size limit
+        let content = JSON.stringify(this.pool, null, 2);
+        while (content.length > MAX_MEMORY_SIZE_CHARS && this.pool!.entries.length > 0) {
+          this.pool!.entries.shift(); // Remove oldest
+          content = JSON.stringify(this.pool, null, 2);
+        }
+
+        this.pool!.lastSync = new Date().toISOString();
+        this.pool!.version++;
+        content = JSON.stringify(this.pool, null, 2);
+
+        // Fix 3: Atomic Writes (Safe Writes)
+        // Write to temp file first, then rename. Prevents corruption on crash.
+        const tempFile = SHARED_MEMORY_FILE + '.tmp';
+        await fs.writeFile(tempFile, content, 'utf-8');
+        await fs.rename(tempFile, SHARED_MEMORY_FILE);
+      } catch (error) {
+        debugLogger.error(`Failed to save shared memory pool: ${error}`);
+      } finally {
+        this.isWriting = false;
+      }
+    }).catch(err => {
+      debugLogger.error(`Write queue error: ${err}`);
+    });
+
+    await this.writeQueue;
   }
 
   /**
