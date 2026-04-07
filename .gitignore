@@ -1,6 +1,18 @@
+# ============================================
+# NEVER COMMIT PERSONAL DATA OR CHAT HISTORY
+# ============================================
+~/.gemini/
+~/.gemini2/
+~/.gemini3/
+/Users/aatifquamre/.gemini/**
+/Users/aatifquamre/chats/**
+/Users/aatifquamre/chats-merged/**
+
+# ============================================
 # Project context files
 .gemini-context/
 
+# ============================================
 # Build artifacts
 dist/
 bundle/*.js
@@ -10,18 +22,38 @@ bundle/native_modules/
 sea-config.json
 sea-prep.blob
 
+# ============================================
 # OS files
 .DS_Store
 Thumbs.db
 
+# ============================================
 # IDE files
 .vscode/
 .idea/
 
+# ============================================
 # Logs
 *.log
 npm-debug.log*
 
+# ============================================
 # Test coverage
 coverage/
 .nyc_output/
+
+# ============================================
+# Dependencies
+node_modules/
+
+# ============================================
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.production
+
+# ============================================
+# Temporary files
+*.tmp
+*.temp
+tmp/
