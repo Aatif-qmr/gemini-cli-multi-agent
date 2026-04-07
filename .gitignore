@@ -69,3 +69,8 @@ tmp/
 # Nested Instances (Organizational)
 gemini-instance-2/
 gemini-instance-3/
+
+# Local Auth Folders (Phase 6)
+.gemini/
+gemini-instance-2/.gemini/
+gemini-instance-3/.gemini/
