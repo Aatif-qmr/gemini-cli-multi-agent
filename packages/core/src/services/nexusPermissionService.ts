@@ -13,7 +13,7 @@ export interface PermissionRequest {
   id: string;
   instance: string;
   action: string;
-  details?: string;
+  details: string;
   status: 'pending' | 'approved' | 'denied';
   timestamp: string;
 }
@@ -26,19 +26,26 @@ const PERMISSIONS_FILE = path.join(NEXUS_DIR, 'pending-approvals.json');
  * Uses a shared JSON file as a simple IPC mechanism.
  */
 export class NexusPermissionService {
-  
+  private static instance: NexusPermissionService | null = null;
+
+  private constructor() {}
+
+  static getInstance(): NexusPermissionService {
+    if (!this.instance) {
+      this.instance = new NexusPermissionService();
+    }
+    return this.instance;
+  }
+
   /**
    * Requests permission for a specific action.
-   * @param instance The name of the requesting instance (e.g., "gmi2")
-   * @param action The action requiring approval
-   * @param details Optional details
-   * @param timeoutMs How long to wait for approval before failing (default: 5 mins)
+   * This writes to the shared mailbox and waits for a response.
    */
-  static async request(instance: string, action: string, details?: string, timeoutMs: number = 300000): Promise<boolean> {
+  async requestPermission(instance: string, action: string, details: string): Promise<boolean> {
     await fs.mkdir(NEXUS_DIR, { recursive: true });
 
     const request: PermissionRequest = {
-      id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      id: `${instance}-${Date.now()}`,
       instance,
       action,
       details,
@@ -46,55 +53,53 @@ export class NexusPermissionService {
       timestamp: new Date().toISOString(),
     };
 
-    // Read existing requests
+    // Append to the mailbox
     let requests: PermissionRequest[] = [];
     try {
       const content = await fs.readFile(PERMISSIONS_FILE, 'utf-8');
       requests = JSON.parse(content);
     } catch {
-      // File doesn't exist yet
+      // File doesn't exist or is empty
     }
 
-    // Add new request
     requests.push(request);
     await fs.writeFile(PERMISSIONS_FILE, JSON.stringify(requests, null, 2));
-
-    console.log(`\n⚠️  [${instance}] Waiting for approval: "${action}"...`);
+    debugLogger.log(`⏳ [${instance}] Waiting for approval: ${action}...`);
 
     // Poll for response
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeoutMs) {
-      try {
-        const content = await fs.readFile(PERMISSIONS_FILE, 'utf-8');
-        const currentRequests: PermissionRequest[] = JSON.parse(content);
-        const myRequest = currentRequests.find(r => r.id === request.id);
+    return new Promise((resolve) => {
+      const interval = setInterval(async () => {
+        try {
+          const content = await fs.readFile(PERMISSIONS_FILE, 'utf-8');
+          const currentRequests = JSON.parse(content);
+          const myRequest = currentRequests.find((r: PermissionRequest) => r.id === request.id);
 
-        if (myRequest) {
-          if (myRequest.status === 'approved') {
-            console.log(`✅ [${instance}] Action Approved!`);
-            return true;
-          } else if (myRequest.status === 'denied') {
-            console.log(`❌ [${instance}] Action Denied.`);
-            return false;
+          if (myRequest) {
+            if (myRequest.status === 'approved') {
+              clearInterval(interval);
+              debugLogger.log(`✅ [${instance}] Approval granted!`);
+              resolve(true);
+            } else if (myRequest.status === 'denied') {
+              clearInterval(interval);
+              debugLogger.log(`❌ [${instance}] Approval denied.`);
+              resolve(false);
+            }
+          } else {
+            // Request was removed (archived or processed)
+            clearInterval(interval);
+            resolve(false); 
           }
-        } else {
-          // Request was removed (maybe archived)
-          return false; 
+        } catch {
+          // Ignore read errors
         }
-      } catch {
-        // Ignore read errors
-      }
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
-    }
-
-    console.log(`⌛ [${instance}] Approval request timed out.`);
-    return false;
+      }, 1000); // Check every second
+    });
   }
 
   /**
-   * Retrieves all pending requests.
+   * Gets all pending requests.
    */
-  static async getPending(): Promise<PermissionRequest[]> {
+  async getPendingRequests(): Promise<PermissionRequest[]> {
     try {
       const content = await fs.readFile(PERMISSIONS_FILE, 'utf-8');
       const requests: PermissionRequest[] = JSON.parse(content);
@@ -105,20 +110,19 @@ export class NexusPermissionService {
   }
 
   /**
-   * Responds to a specific request by ID.
+   * Approves or denies a request.
    */
-  static async respond(id: string, decision: 'approved' | 'denied'): Promise<void> {
+  async respondToRequest(id: string, status: 'approved' | 'denied'): Promise<void> {
     try {
       const content = await fs.readFile(PERMISSIONS_FILE, 'utf-8');
       const requests: PermissionRequest[] = JSON.parse(content);
-      
       const index = requests.findIndex(r => r.id === id);
       if (index !== -1) {
-        requests[index].status = decision;
+        requests[index].status = status;
         await fs.writeFile(PERMISSIONS_FILE, JSON.stringify(requests, null, 2));
       }
     } catch (error) {
-      console.error('Failed to update permissions file:', error);
+      debugLogger.error(`Failed to update permissions: ${error}`);
     }
   }
 }
