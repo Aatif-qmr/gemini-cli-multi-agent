@@ -102,8 +102,9 @@ async function readInstanceSessions(instanceDir: string, daysAgo?: number): Prom
               const hash = session.projectHash.substring(0, 8);
               stats.topProjects[hash] = (stats.topProjects[hash] || 0) + 1;
             }
-          } catch {
-            // Skip corrupted files
+          } catch (e) {
+            // Fix 3: Skip corrupted files instead of crashing
+            debugLogger.warn(`Skipping corrupted session file: ${file}`);
           }
         }
       } catch {
