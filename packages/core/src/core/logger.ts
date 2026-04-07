@@ -6,11 +6,16 @@
 
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { gzip, gunzip } from 'node:zlib';
+import { promisify } from 'node:util';
 import type { Content } from '@google/genai';
 import type { AuthType } from './contentGenerator.js';
 import type { Storage } from '../config/storage.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { coreEvents } from '../utils/events.js';
+
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 const LOG_FILE_NAME = 'logs.json';
 
@@ -333,10 +338,12 @@ export class Logger {
       );
       return;
     }
-    // Always save with the new encoded path.
-    const path = this._checkpointPath(tag);
+    // Compress checkpoint: 80% space savings
+    const path = this._checkpointPath(tag).replace('.json', '.json.gz');
     try {
-      await fs.writeFile(path, JSON.stringify(checkpoint, null, 2), 'utf-8');
+      const json = JSON.stringify(checkpoint); // Minified
+      const compressed = await gzipAsync(Buffer.from(json, 'utf-8'));
+      await fs.writeFile(path, compressed);
     } catch (error) {
       debugLogger.error('Error writing to checkpoint file:', error);
     }
@@ -352,9 +359,21 @@ export class Logger {
 
     const path = await this._getCheckpointPath(tag);
     try {
-      const fileContent = await fs.readFile(path, 'utf-8');
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const parsedContent = JSON.parse(fileContent);
+      const fileContent = await fs.readFile(path);
+      
+      let parsedContent: unknown;
+      // Auto-detect compressed vs regular JSON
+      if (path.endsWith('.gz')) {
+        // Compressed checkpoint
+        const decompressed = await gunzipAsync(fileContent);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        parsedContent = JSON.parse(decompressed.toString('utf-8'));
+      } else {
+        // Regular JSON (backward compatibility)
+        const text = typeof fileContent === 'string' ? fileContent : fileContent.toString('utf-8');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        parsedContent = JSON.parse(text);
+      }
 
       // Handle legacy format (just an array of Content)
       if (Array.isArray(parsedContent)) {
