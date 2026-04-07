@@ -64,3 +64,8 @@ node_modules/
 *.tmp
 *.temp
 tmp/
+
+# ============================================
+# Nested Instances (Organizational)
+gemini-instance-2/
+gemini-instance-3/
