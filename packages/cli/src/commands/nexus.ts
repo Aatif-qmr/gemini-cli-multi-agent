@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule, ArgumentsCamelCase } from 'yargs';
-import { MemorySyncService, NexusRouterService } from '@google/gemini-cli-core';
+import { MemorySyncService, NexusRouterService, NexusPermissionService } from '@google/gemini-cli-core';
 
 interface NexusStatusArgs {
   _: (string | number)[];
