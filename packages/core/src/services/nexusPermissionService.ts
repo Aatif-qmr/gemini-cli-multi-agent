@@ -22,16 +22,13 @@ const PERMISSIONS_FILE = path.join(NEXUS_DIR, 'pending-approvals.json');
 
 /**
  * Service for gmi2/gmi3 to request permission from gmi1.
- * This uses a shared JSON file as a simple IPC mechanism.
+ * Uses a shared JSON file as a simple IPC mechanism.
  */
 export class NexusPermissionService {
   
   /**
    * Requests permission for a specific action.
-   * @param instance The name of the requesting instance (e.g., "gmi2")
-   * @param action The action requiring approval
-   * @param details Optional details
-   * @param timeoutMs How long to wait for approval before failing (default: 5 mins)
+   * This blocks execution until gmi1 approves/denies or timeout occurs.
    */
   static async request(instance: string, action: string, details?: string, timeoutMs: number = 300000): Promise<boolean> {
     await fs.mkdir(NEXUS_DIR, { recursive: true });
