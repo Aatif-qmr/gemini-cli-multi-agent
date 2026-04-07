@@ -27,6 +27,7 @@ import { MEMORY_TOOL_NAME } from './tool-names.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { MEMORY_DEFINITION } from './definitions/coreTools.js';
 import { resolveToolDeclaration } from './definitions/resolver.js';
+import { MemorySyncService } from '../services/memorySyncService.js';
 
 export const DEFAULT_CONTEXT_FILENAME = 'GEMINI.md';
 export const MEMORY_SECTION_HEADER = '## Gemini Added Memories';
@@ -286,6 +287,19 @@ class MemoryToolInvocation extends BaseToolInvocation<
         recursive: true,
       });
       await fs.writeFile(memoryFilePath, contentToWrite, 'utf-8');
+
+      // Sync to shared memory pool (Layer 3: Nexus)
+      try {
+        const syncService = MemorySyncService.getInstance();
+        await syncService.addFact(
+          sanitizedFact,
+          process.env['GEMINI_INSTANCE_ID'] || 'unknown',
+          this.params.scope === 'project' ? 'project' : 'global'
+        );
+      } catch (syncError) {
+        // Don't fail the tool if sync fails, just log it
+        console.warn(`Memory sync failed: ${syncError}`);
+      }
 
       return {
         llmContent: JSON.stringify({

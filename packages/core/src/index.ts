@@ -146,6 +146,12 @@ export * from './services/trackerTypes.js';
 export * from './services/projectContextService.js';
 export * from './services/keychainService.js';
 export * from './services/keychainTypes.js';
+
+// Layer 3: Nexus Services
+export * from './services/memorySyncService.js';
+export * from './services/nexusRouterService.js';
+export * from './services/multiAccountRotationService.js';
+
 export * from './skills/skillManager.js';
 export * from './skills/skillLoader.js';
 

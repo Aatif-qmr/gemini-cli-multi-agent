@@ -38,53 +38,80 @@ async function readInstanceSessions(instanceDir: string, daysAgo?: number): Prom
     topProjects: {},
   };
 
-  const chatsDir = path.join(instanceDir, 'chats');
+  // Scan all project subdirectories in tmp
+  const tmpDir = path.join(instanceDir, 'tmp');
   try {
-    const files = await fs.readdir(chatsDir);
+    const projects = await fs.readdir(tmpDir);
     const cutoffDate = daysAgo ? new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000) : null;
 
-    for (const file of files) {
-      if (!file.startsWith('session-') || !file.endsWith('.json')) continue;
-
+    for (const project of projects) {
+      const chatsDir = path.join(tmpDir, project, 'chats');
       try {
-        const content = await fs.readFile(path.join(chatsDir, file), 'utf-8');
-        const session = JSON.parse(content);
-        
-        const sessionDate = new Date(session.startTime);
-        if (cutoffDate && sessionDate < cutoffDate) continue;
+        const files = await fs.readdir(chatsDir);
 
-        stats.sessionCount++;
+        for (const file of files) {
+          if (!file.startsWith('session-') || !file.endsWith('.json')) continue;
 
-        // Update date range
-        if (!stats.dateRange.earliest || session.startTime < stats.dateRange.earliest) {
-          stats.dateRange.earliest = session.startTime;
-        }
-        if (!stats.dateRange.latest || session.lastUpdated > stats.dateRange.latest) {
-          stats.dateRange.latest = session.lastUpdated;
-        }
+          try {
+            const content = await fs.readFile(path.join(chatsDir, file), 'utf-8');
+            const session = JSON.parse(content);
+            
+            const sessionDate = new Date(session.startTime);
+            if (cutoffDate && sessionDate < cutoffDate) continue;
 
-        // Count messages and estimate tokens
-        const messages = session.messages || [];
-        stats.totalRequests += messages.filter((m: any) => m.type === 'user').length;
+            stats.sessionCount++;
 
-        // Sum token usage from messages
-        for (const msg of messages) {
-          if (msg.tokens) {
-            stats.totalTokens += msg.tokens.total || 0;
+            // Update date range
+            if (!stats.dateRange.earliest || session.startTime < stats.dateRange.earliest) {
+              stats.dateRange.earliest = session.startTime;
+            }
+            if (!stats.dateRange.latest || session.lastUpdated > stats.dateRange.latest) {
+              stats.dateRange.latest = session.lastUpdated;
+            }
+
+            // Count messages and estimate tokens
+            const messages = session.messages || [];
+            stats.totalRequests += messages.filter((m: any) => m.type === 'user').length;
+
+            // Sum token usage from messages (handle different token structures)
+            for (const msg of messages) {
+              if (msg.tokens) {
+                if (typeof msg.tokens === 'number') {
+                  stats.totalTokens += msg.tokens;
+                } else if (msg.tokens.total) {
+                  stats.totalTokens += msg.tokens.total;
+                } else if (msg.tokens.input && msg.tokens.output) {
+                  stats.totalTokens += msg.tokens.input + msg.tokens.output;
+                }
+              }
+              // Also check for usageMetadata at the end of session if available
+              if (msg.usageMetadata) {
+                // Only count if it's the last message or has usage info
+                stats.totalTokens += msg.usageMetadata.totalTokenCount || msg.usageMetadata.promptTokenCount || 0;
+              }
+            }
+            // If session has top-level usageMetadata, use it (more accurate)
+            if (session.usageMetadata?.totalTokenCount) {
+               // Reset calculated and use the authoritative total
+               stats.totalTokens -= (session.messages || []).reduce((acc: number, m: any) => acc + (m.tokens?.total || 0), 0);
+               stats.totalTokens += session.usageMetadata.totalTokenCount;
+            }
+
+            // Track project hash
+            if (session.projectHash) {
+              const hash = session.projectHash.substring(0, 8);
+              stats.topProjects[hash] = (stats.topProjects[hash] || 0) + 1;
+            }
+          } catch {
+            // Skip corrupted files
           }
         }
-
-        // Track project hash
-        if (session.projectHash) {
-          const hash = session.projectHash.substring(0, 8);
-          stats.topProjects[hash] = (stats.topProjects[hash] || 0) + 1;
-        }
       } catch {
-        // Skip corrupted files
+        // Chats dir doesn't exist for this project
       }
     }
   } catch {
-    // Directory doesn't exist or is empty
+    // Tmp directory doesn't exist
   }
 
   return stats;
@@ -107,11 +134,11 @@ function estimateCost(tokens: number): string {
 }
 
 /**
- * Usage dashboard command
+ * Main usage command group
  */
-const usageDashboardCommand: CommandModule<{}, UsageDashboardArgs> = {
+export const usageCommand: CommandModule = {
   command: 'usage [options]',
-  describe: 'Show combined usage dashboard for all Gemini instances',
+  describe: 'View usage statistics and dashboard',
   builder: (yargs) =>
     yargs
       .option('days', {
@@ -123,7 +150,7 @@ const usageDashboardCommand: CommandModule<{}, UsageDashboardArgs> = {
         alias: 'p',
         type: 'string',
         describe: 'Filter by project hash prefix',
-      }) as any,
+      }),
   handler: async (argv: ArgumentsCamelCase<UsageDashboardArgs>) => {
     const homeDir = os.homedir();
     const days = argv.days;
@@ -167,22 +194,22 @@ const usageDashboardCommand: CommandModule<{}, UsageDashboardArgs> = {
 
     // Show per-instance breakdown
     console.log('📊 INSTANCE BREAKDOWN');
-    console.log('─'.repeat(70));
-    console.log('  Instance       Sessions    Requests    Tokens        Est. Cost');
-    console.log('  ' + '─'.repeat(68));
+    console.log('─'.repeat(80));
+    console.log('  Instance       Sessions     Requests     Tokens            Est. Cost');
+    console.log('  ' + '─'.repeat(78));
 
     for (const stat of allStats) {
       const name = stat.instance.padEnd(16);
-      const sessions = formatNumber(stat.sessionCount).padStart(10);
+      const sessions = formatNumber(stat.sessionCount).padStart(8);
       const requests = formatNumber(stat.totalRequests).padStart(10);
-      const tokens = formatNumber(stat.totalTokens).padStart(12);
-      const cost = estimateCost(stat.totalTokens).padStart(12);
-      console.log(`  ${name}${sessions}${requests}${tokens}${cost}`);
+      const tokens = formatNumber(stat.totalTokens).padStart(16);
+      const cost = estimateCost(stat.totalTokens).padStart(14);
+      console.log(`  ${name}${sessions}      ${requests}  ${tokens}  ${cost}`);
     }
 
-    console.log('  ' + '─'.repeat(68));
+    console.log('  ' + '─'.repeat(78));
     const totalLine = 'TOTAL'.padEnd(16);
-    console.log(`  ${totalLine}${formatNumber(totalSessions).padStart(10)}${formatNumber(totalRequests).padStart(10)}${formatNumber(totalTokens).padStart(12)}${estimateCost(totalTokens).padStart(12)}`);
+    console.log(`  ${totalLine}${formatNumber(totalSessions).padStart(8)}      ${formatNumber(totalRequests).padStart(10)}  ${formatNumber(totalTokens).padStart(16)}  ${estimateCost(totalTokens).padStart(14)}`);
     console.log('');
 
     // Show date range
@@ -228,17 +255,4 @@ const usageDashboardCommand: CommandModule<{}, UsageDashboardArgs> = {
     console.log('  • Check cost estimates to track API spending\n');
     console.log('═'.repeat(70) + '\n');
   },
-};
-
-/**
- * Main usage command group
- */
-export const usageCommand: CommandModule = {
-  command: 'usage <command>',
-  describe: 'View usage statistics and dashboard',
-  builder: (yargs) =>
-    yargs
-      .command(usageDashboardCommand)
-      .demandCommand(1, 'You need to specify a usage command'),
-  handler: () => {},
 };
