@@ -1,12 +1,19 @@
 # ============================================
 # NEVER COMMIT PERSONAL DATA OR CHAT HISTORY
 # ============================================
-~/.gemini/
-~/.gemini2/
-~/.gemini3/
+
+# Local gemini data (copied for local use)
+.gemini-local/
+
+# Chat history (local only)
+chats/
+chats-merged/
+chats /
+
+# System gemini directories
 /Users/aatifquamre/.gemini/**
-/Users/aatifquamre/chats/**
-/Users/aatifquamre/chats-merged/**
+/Users/aatifquamre/.gemini2/**
+/Users/aatifquamre/.gemini3/**
 
 # ============================================
 # Project context files
