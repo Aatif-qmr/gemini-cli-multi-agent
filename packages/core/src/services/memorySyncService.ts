@@ -6,7 +6,6 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import os from 'node:os';
 import { debugLogger } from '../utils/debugLogger.js';
 
 export interface SharedMemoryEntry {
@@ -22,7 +21,7 @@ export interface SharedMemoryPool {
   version: number;
 }
 
-const NEXUS_DIR = path.join(os.homedir(), '.gemini-nexus');
+const NEXUS_DIR = path.join(process.cwd(), '.gemini-nexus');
 const SHARED_MEMORY_FILE = path.join(NEXUS_DIR, 'shared-memory.json');
 const MAX_MEMORY_SIZE_CHARS = 15000; // Limit to ~2000-4000 tokens to prevent context overflow
 
