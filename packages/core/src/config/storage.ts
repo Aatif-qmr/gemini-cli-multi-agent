@@ -43,6 +43,22 @@ export class Storage {
   }
 
   static getGlobalGeminiDir(): string {
+    // Phase 6: Check for local .gemini folder in the current working directory first.
+    // This allows the project to be portable and independent of the global ~/.gemini.
+    const cwd = process.cwd();
+    const localGeminiDir = path.join(cwd, GEMINI_DIR);
+    
+    try {
+      // We check for a key file to ensure it's a valid gemini directory
+      const oauthPath = path.join(localGeminiDir, OAUTH_FILE);
+      if (fs.existsSync(oauthPath)) {
+        return localGeminiDir;
+      }
+    } catch {
+      // Ignore errors
+    }
+
+    // Fallback to global home directory
     const homeDir = homedir();
     if (!homeDir) {
       return path.join(os.tmpdir(), GEMINI_DIR);
