@@ -108,6 +108,10 @@ export interface ConversationRecord {
   directories?: string[];
   /** The kind of conversation (main agent or subagent) */
   kind?: 'main' | 'subagent';
+  /** User-defined tags for organization */
+  tags?: string[];
+  /** Whether this session is pinned (exempt from auto-deletion) */
+  pinned?: boolean;
 }
 
 /**

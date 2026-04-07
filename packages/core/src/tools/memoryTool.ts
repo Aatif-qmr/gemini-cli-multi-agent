@@ -102,6 +102,7 @@ async function readMemoryFileContent(filePath: string): Promise<string> {
 
 /**
  * Computes the new content that would result from adding a memory entry
+ * Includes deduplication: checks if similar fact already exists
  */
 function computeNewContent(currentContent: string, fact: string): string {
   // Sanitize to prevent markdown injection by collapsing to a single line.
@@ -137,7 +138,32 @@ function computeNewContent(currentContent: string, fact: string): string {
       .trimEnd();
     const afterSectionMarker = currentContent.substring(endOfSectionIndex);
 
-    sectionContent += `\n${newMemoryItem}`;
+    // Memory deduplication: check if similar fact already exists
+    const existingFacts = sectionContent
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.startsWith('- '))
+      .map(line => line.substring(2).toLowerCase());
+
+    const newFactLower = processedText.toLowerCase();
+    const isDuplicate = existingFacts.some(existing => {
+      // Exact match
+      if (existing === newFactLower) return true;
+      // Contains match (one is substring of other)
+      if (existing.includes(newFactLower) || newFactLower.includes(existing)) {
+        // Only consider it duplicate if similarity is high (80%+ overlap)
+        const shorter = Math.min(existing.length, newFactLower.length);
+        const longer = Math.max(existing.length, newFactLower.length);
+        return shorter / longer > 0.8;
+      }
+      return false;
+    });
+
+    // Only append if not a duplicate
+    if (!isDuplicate) {
+      sectionContent += `\n${newMemoryItem}`;
+    }
+
     return (
       `${beforeSectionMarker}\n${sectionContent.trimStart()}\n${afterSectionMarker}`.trimEnd() +
       '\n'
