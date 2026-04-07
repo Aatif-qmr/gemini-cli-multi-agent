@@ -40,5 +40,5 @@ export const CLIENT_PROFILES: Record<string, ClientProfile> = {
 };
 
 export function getProfileById(id: string): ClientProfile {
-  return CLIENT_PROFILES[id] || CLIENT_PROFILES.gmi1;
+  return CLIENT_PROFILES[id] || CLIENT_PROFILES['gmi1'];
 }
