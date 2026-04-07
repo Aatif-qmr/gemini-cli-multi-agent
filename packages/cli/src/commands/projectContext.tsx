@@ -27,7 +27,7 @@ export const projectContextCommand: CommandModule = {
         describe: 'Initialize the .gemini-context directory and files.',
         handler: async (argv) => {
           const settings = loadSettings();
-          const config = await loadCliConfig(settings.merged, sessionId, argv);
+          const config = await loadCliConfig(settings.merged, sessionId, argv as any);
           const service = new ProjectContextService(config);
 
           if (await service.contextExists()) {
