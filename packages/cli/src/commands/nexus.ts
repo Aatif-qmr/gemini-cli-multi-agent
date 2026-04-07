@@ -5,9 +5,16 @@
  */
 
 import type { CommandModule, ArgumentsCamelCase } from 'yargs';
-import { MemorySyncService, NexusRouterService } from '@google/gemini-cli-core';
+import { MemorySyncService, NexusRouterService, NexusPermissionService } from '@google/gemini-cli-core';
 
 interface NexusStatusArgs {
+  _: (string | number)[];
+  $0: string;
+}
+
+interface NexusApprovalsArgs {
+  action?: string;
+  id?: string;
   _: (string | number)[];
   $0: string;
 }
@@ -27,7 +34,7 @@ const nexusStatusCommand: CommandModule<{}, NexusStatusArgs> = {
     // Show Memory Pool Status
     const memoryService = MemorySyncService.getInstance();
     const memStatus = await memoryService.getStatus();
-    
+
     console.log('📦 Shared Memory Pool');
     console.log('─'.repeat(70));
     console.log(`  Total shared facts: ${memStatus.totalSharedFacts}`);
@@ -65,6 +72,59 @@ const nexusStatusCommand: CommandModule<{}, NexusStatusArgs> = {
 };
 
 /**
+ * Nexus Approvals Command
+ * Manages permission requests from gmi2 and gmi3
+ */
+const nexusApprovalsCommand: CommandModule<{}, NexusApprovalsArgs> = {
+  command: 'approvals [action] [id]',
+  describe: 'View and manage permission requests from gmi2/gmi3',
+  builder: (yargs) =>
+    yargs
+      .positional('action', {
+        describe: 'Action to take',
+        choices: ['list', 'approve', 'deny'],
+        default: 'list',
+      })
+      .positional('id', {
+        describe: 'Request ID to approve/deny',
+        type: 'string',
+      }) as any,
+  handler: async (argv: ArgumentsCamelCase<NexusApprovalsArgs>) => {
+    const permissionService = NexusPermissionService.getInstance();
+    const action = argv.action || 'list';
+    const id = argv.id;
+
+    if (action === 'list') {
+      const requests = await permissionService.getPendingRequests();
+      console.log('\n📋 Pending Permission Requests\n');
+      console.log('─'.repeat(70));
+      if (requests.length === 0) {
+        console.log('  ✅ No pending requests.');
+      } else {
+        for (const req of requests) {
+          console.log(`  ID:        ${req.id}`);
+          console.log(`  Instance:  ${req.instance}`);
+          console.log(`  Action:    ${req.action}`);
+          console.log(`  Details:   ${req.details || 'N/A'}`);
+          console.log(`  Time:      ${new Date(req.timestamp).toLocaleTimeString()}`);
+          console.log('  ' + '─'.repeat(70));
+        }
+        console.log('\n💡 To approve: gmi nexus approvals approve <id>');
+        console.log('💡 To deny:    gmi nexus approvals deny <id>\n');
+      }
+    } else if (action === 'approve' || action === 'deny') {
+      if (!id) {
+        console.error('❌ Error: You must specify a request ID (e.g., gmi nexus approvals approve gmi2-12345)');
+        return;
+      }
+      const status = action === 'approve' ? 'approved' : 'denied';
+      await permissionService.respondToRequest(id, status);
+      console.log(`✅ Request ${id} ${status}.`);
+    }
+  },
+};
+
+/**
  * Memory Sync Command
  * Force sync local memories to the shared pool
  */
@@ -93,6 +153,7 @@ export const nexusCommand: CommandModule = {
   builder: (yargs) =>
     yargs
       .command(nexusStatusCommand)
+      .command(nexusApprovalsCommand)
       .command(memorySyncCommand)
       .demandCommand(1, 'You need to specify a nexus command'),
   handler: () => {},
