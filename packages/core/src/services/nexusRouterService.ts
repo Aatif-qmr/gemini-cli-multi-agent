@@ -6,6 +6,10 @@
 
 import { debugLogger } from '../utils/debugLogger.js';
 
+// Layer 7: Stealth Constants
+const MAX_DAILY_TOKENS = 2000000; // 2M token cap to stay "normal human"
+const MIN_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes cooldown between switches
+
 /**
  * Represents an API account in the Nexus cluster
  */
@@ -18,6 +22,16 @@ export interface NexusAccount {
   rateLimitReset: number; // Timestamp when rate limit resets
   lastUsed: number; // Timestamp of last request
   totalRequests: number;
+  dailyTokenUsage: number; // Track daily tokens for throttling
+}
+
+/**
+ * Human-Like Jitter (Layer 7 Stealth)
+ * Introduces random delays (200ms - 1700ms) to break "perfect" bot timing.
+ */
+export async function humanDelay(): Promise<void> {
+  const jitter = Math.random() * 1500 + 200;
+  await new Promise(resolve => setTimeout(resolve, jitter));
 }
 
 /**
