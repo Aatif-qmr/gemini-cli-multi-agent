@@ -7,6 +7,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import os from 'node:os';
+import { debugLogger } from '../utils/debugLogger.js';
 
 export interface PermissionRequest {
   id: string;
@@ -22,7 +23,7 @@ const PERMISSIONS_FILE = path.join(NEXUS_DIR, 'pending-approvals.json');
 
 /**
  * Service for gmi2/gmi3 to request permission from gmi1.
- * This uses a shared JSON file as a simple IPC mechanism.
+ * Uses a shared JSON file as a simple IPC mechanism.
  */
 export class NexusPermissionService {
   
