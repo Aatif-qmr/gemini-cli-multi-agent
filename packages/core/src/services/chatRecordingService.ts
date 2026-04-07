@@ -554,7 +554,11 @@ export class ChatRecordingService {
       this.cachedLastConvData = contentToWrite;
       // Ensure directory exists before writing (handles cases where temp dir was cleaned)
       fs.mkdirSync(path.dirname(this.conversationFile), { recursive: true });
-      fs.writeFileSync(this.conversationFile, contentToWrite);
+      
+      // Atomic Write: Write to temp file then rename to prevent corruption on crash
+      const tempFile = this.conversationFile + '.tmp';
+      fs.writeFileSync(tempFile, contentToWrite);
+      fs.renameSync(tempFile, this.conversationFile);
     } catch (error) {
       // Handle disk full (ENOSPC) gracefully - disable recording but allow conversation to continue
       if (
