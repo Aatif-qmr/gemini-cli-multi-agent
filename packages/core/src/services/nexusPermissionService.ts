@@ -6,7 +6,6 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import os from 'node:os';
 import { debugLogger } from '../utils/debugLogger.js';
 
 export interface PermissionRequest {
@@ -18,7 +17,7 @@ export interface PermissionRequest {
   timestamp: string;
 }
 
-const NEXUS_DIR = path.join(os.homedir(), '.gemini-nexus');
+const NEXUS_DIR = path.join(process.cwd(), '.gemini-nexus');
 const PERMISSIONS_FILE = path.join(NEXUS_DIR, 'pending-approvals.json');
 
 /**
