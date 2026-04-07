@@ -30,6 +30,7 @@ export class NexusPermissionService {
    * Requests permission for a specific action.
    * @param instance The name of the requesting instance (e.g., "gmi2")
    * @param action The action requiring approval
+   * @param details Optional details
    * @param timeoutMs How long to wait for approval before failing (default: 5 mins)
    */
   static async request(instance: string, action: string, details?: string, timeoutMs: number = 300000): Promise<boolean> {
