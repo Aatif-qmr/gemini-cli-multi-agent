@@ -187,6 +187,7 @@ export async function parseArguments(
         skillsCommand,
         hooksCommand,
         projectContextCommand,
+        memoryCommand,
         authCommand,
         systemCommand,
       ];
