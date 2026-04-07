@@ -29,12 +29,16 @@ interface ModelMixListArgs {
 }
 
 /**
- * Available Gemini models
+ * Available models across all providers
  */
 const AVAILABLE_MODELS = [
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Most capable model for complex reasoning', bestFor: 'Deep analysis, architecture' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast and capable for most tasks', bestFor: 'Daily coding, debugging' },
-  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', description: 'Fastest and most cost-effective', bestFor: 'Quick lookups, summaries' },
+  // Google
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'google', description: 'Most capable model for complex reasoning', bestFor: 'Deep analysis, architecture' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'google', description: 'Fast and capable for most tasks', bestFor: 'Daily coding, debugging' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'google', description: 'Fastest and most cost-effective', bestFor: 'Quick lookups, summaries' },
+  // AWS Bedrock
+  { id: 'devstral-2-123b', name: 'Devstral 2 123B', provider: 'aws-bedrock', description: 'Specialized coding model (Bedrock)', bestFor: 'Code generation, refactoring' },
+  { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'aws-bedrock', description: 'High intelligence (Bedrock)', bestFor: 'Complex logic, creative writing' },
 ];
 
 /**
@@ -53,6 +57,16 @@ const MODEL_MIXES = [
     },
   },
   {
+    id: 'code-powerhouse',
+    name: '💻 Code Powerhouse',
+    description: 'Uses Devstral for coding, Gemini for logic',
+    strategy: {
+      coding: 'devstral-2-123b',
+      reasoning: 'gemini-2.5-pro',
+      chat: 'gemini-2.5-flash',
+    },
+  },
+  {
     id: 'speed',
     name: '⚡ Speed Demon',
     description: 'Prioritize speed over capability',
@@ -60,7 +74,7 @@ const MODEL_MIXES = [
       default: 'gemini-2.5-flash-lite',
       complexThreshold: 0.85,
       complexModel: 'gemini-2.5-flash',
-      fallback: 'gemini-2.5-flash-lite',
+      fallback: 'devstral-2-123b', // Use Devstral if Gemini is slow/down
     },
   },
   {
@@ -70,8 +84,8 @@ const MODEL_MIXES = [
     strategy: {
       default: 'gemini-2.5-pro',
       complexThreshold: 0.5,
-      complexModel: 'gemini-2.5-pro',
-      fallback: 'gemini-2.5-flash',
+      complexModel: 'claude-3.5-sonnet',
+      fallback: 'devstral-2-123b',
     },
   },
   {
@@ -81,20 +95,20 @@ const MODEL_MIXES = [
     strategy: {
       default: 'gemini-2.5-flash-lite',
       complexThreshold: 0.9,
-      complexModel: 'gemini-2.5-flash',
+      complexModel: 'devstral-2-123b',
       fallback: 'gemini-2.5-flash-lite',
     },
   },
   {
     id: 'mult-account',
     name: '🔄 Multi-Account',
-    description: 'Distribute across 3 accounts',
+    description: 'Distribute across 3 accounts + AWS',
     strategy: {
       default: 'gemini-2.5-flash',
       rotation: true,
-      accounts: ['account1', 'account2', 'account3'],
+      accounts: ['account1', 'account2', 'account3', 'aws-bedrock'],
       complexModel: 'gemini-2.5-pro',
-      fallback: 'gemini-2.5-flash-lite',
+      fallback: 'devstral-2-123b',
     },
   },
 ];
@@ -109,10 +123,11 @@ const modelListCommand: CommandModule<{}, ModelListArgs> = {
   handler: async (_argv: ArgumentsCamelCase<ModelListArgs>) => {
     console.log('\n🤖 Available Models\n');
     console.log('─'.repeat(70));
-    console.log('  Model ID                Name                      Best For');
-    console.log('  ' + '─'.repeat(68));
+    console.log('  Model ID                 Provider           Best For');
+    console.log('  ' + '─'.repeat(70));
     for (const model of AVAILABLE_MODELS) {
-      console.log(`  ${model.id.padEnd(23)}${model.name.padEnd(25)}${model.bestFor}`);
+      const providerTag = model.provider === 'google' ? 'Google' : 'AWS Bedrock';
+      console.log(`  ${model.id.padEnd(22)}${providerTag.padEnd(18)}${model.bestFor}`);
     }
     console.log('\n  Use "gmi model select <model-id>" to switch models\n');
   },
