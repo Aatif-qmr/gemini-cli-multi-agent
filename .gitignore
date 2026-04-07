@@ -1,0 +1,27 @@
+# Project context files
+.gemini-context/
+
+# Build artifacts
+dist/
+bundle/*.js
+bundle/*.mjs
+bundle/*.map
+bundle/native_modules/
+sea-config.json
+sea-prep.blob
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
