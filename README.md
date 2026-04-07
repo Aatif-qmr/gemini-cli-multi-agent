@@ -20,7 +20,7 @@ All 3 run independently with separate Google accounts, isolated environments, an
 
 ---
 
-## 🚀 What's New (Layer 1 → 3)
+## 🚀 What's New (Layer 1 → 6)
 
 ### Layer 1: Storage & Performance
 - ✅ **70% less disk usage** (Minified JSON + Gzip checkpoints)
@@ -39,6 +39,15 @@ All 3 run independently with separate Google accounts, isolated environments, an
 - ✅ **Multi-Account Rotation** - Seamless failover on rate limits
 - ✅ **`gmi nexus` CLI** - Cluster status & manual sync
 
+### Layer 5: Stability & Security
+- ✅ **Async Write Queues** - Prevents file corruption during parallel writes.
+- ✅ **Atomic Writes** - Prevents data loss if the app crashes.
+- ✅ **Context Eviction** - Automatically manages memory pool size to avoid token overflow.
+
+### Layer 6: Project Independence
+- ✅ **Local Auth** - Each instance has its own `.gemini/` folder with credentials.
+- ✅ **Self-Contained** - No longer relies on `~/.gemini*` in your home directory.
+
 ---
 
 ## 📂 Project Structure
@@ -54,8 +63,11 @@ gemini-multi-gem-v1.1.0/                    ← Main Project
 │       ├── usage.ts                        ← Usage Dashboard
 │       ├── model.ts                        ← Model Selector
 │       └── nexus.ts                        ← Nexus CLI
+├── .gemini/                                ← Local Auth & Data (gmi1)
 ├── gemini-instance-2/                      ← Instance 2 (Nested Git Repo)
+│   └── .gemini/                            ← Local Auth & Data (gmi2)
 └── gemini-instance-3/                      ← Instance 3 (Nested Git Repo)
+    └── .gemini/                            ← Local Auth & Data (gmi3)
 ```
 
 ---
@@ -63,7 +75,7 @@ gemini-multi-gem-v1.1.0/                    ← Main Project
 ## 🧠 Working Principles
 
 ### 1. Session Recording (Automatic)
-Every conversation turn is saved to `~/.gemini/tmp/<project>/chats/session-*.json` in real-time.
+Every conversation turn is saved in real-time.
 *   **Optimization:** JSON is minified (66% smaller) and only written when content actually changes.
 
 ### 2. Checkpoint System (Manual)
@@ -80,7 +92,6 @@ When an instance learns a fact via the `memory` tool:
 The `NexusRouterService` tracks the health of all configured API accounts:
 *   **Load Balancing:** Distributes requests to prevent hitting rate limits on one account.
 *   **Failover:** If Account 1 gets a 429 (Rate Limit), it instantly retries Account 2.
-*   **Health Tracking:** Tracks `rateLimitRemaining` and `lastUsed` to pick the healthiest account.
 
 ---
 
@@ -100,6 +111,7 @@ npm link  # Makes 'gmi' available globally
 ```
 
 ### For Instances 2 & 3
+Each instance has its own `.gemini` folder, so it can be built and run independently:
 ```bash
 cd gemini-instance-2 && npm install && npm run build && npm link
 cd ../gemini-instance-3 && npm install && npm run build && npm link
@@ -139,6 +151,13 @@ gmi memory clear         # Clear all memories
 
 ---
 
+## 🔒 Security & Privacy
+*   **Local Auth:** All OAuth credentials are stored in local `.gemini/` folders.
+*   **Git Ignore:** These folders are excluded from Git to prevent accidental token leaks.
+*   **Atomic Writes:** File corruption is prevented via a "write-to-temp-then-rename" strategy.
+
+---
+
 ## 🔗 GitHub Branches
 
 All instances track to the same GitHub repo for centralized management:
@@ -147,18 +166,6 @@ All instances track to the same GitHub repo for centralized management:
 - **Instance 1:** `v1.1.0-enhanced`
 - **Instance 2:** `v1.1.0-instance-2`
 - **Instance 3:** `v1.1.0-instance-3`
-
----
-
-## 🧪 Testing
-
-Run the intensive build test:
-```bash
-# Cleans node_modules, reinstalls, builds, and verifies artifacts
-for d in . ./gemini-instance-2 ./gemini-instance-3; do
-  cd "$d" && rm -rf node_modules dist && npm install && npm run build && cd ..
-done
-```
 
 ---
 
