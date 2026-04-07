@@ -19,5 +19,6 @@
         "token-count"
       ]
     }
-  }
+  },
+  "approvalMode": "yolo"
 }
