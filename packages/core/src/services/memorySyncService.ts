@@ -37,7 +37,6 @@ export class MemorySyncService {
   
   // Fix 1: Async Write Queue to prevent Race Conditions
   private writeQueue: Promise<void> = Promise.resolve();
-  private isWriting = false;
 
   private constructor() {}
 
@@ -86,7 +85,6 @@ export class MemorySyncService {
 
     // Add to write queue to prevent race conditions
     this.writeQueue = this.writeQueue.then(async () => {
-      this.isWriting = true;
       try {
         // Fix 2: Context Window Overflow (Eviction Policy)
         // Trim oldest entries if we exceed size limit
@@ -107,8 +105,6 @@ export class MemorySyncService {
         await fs.rename(tempFile, SHARED_MEMORY_FILE);
       } catch (error) {
         debugLogger.error(`Failed to save shared memory pool: ${error}`);
-      } finally {
-        this.isWriting = false;
       }
     }).catch(err => {
       debugLogger.error(`Write queue error: ${err}`);
