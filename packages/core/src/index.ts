@@ -147,6 +147,9 @@ export * from './services/projectContextService.js';
 export * from './services/keychainService.js';
 export * from './services/keychainTypes.js';
 
+// Layer 7: Stealth Profiles
+export * from './config/clientProfiles.js';
+
 // Layer 3: Nexus Services
 export * from './services/memorySyncService.js';
 export * from './services/nexusRouterService.js';

@@ -6,7 +6,7 @@
 
 import { debugLogger } from '../utils/debugLogger.js';
 import type { NexusAccount, NexusRoutingStrategy } from './nexusRouterService.js';
-import { NexusRouterService } from './nexusRouterService.js';
+import { NexusRouterService, humanDelay } from './nexusRouterService.js';
 
 /**
  * Multi-Account Rotation Service
@@ -22,13 +22,15 @@ export class MultiAccountRotationService {
   }
 
   /**
-   * Execute a request with automatic failover
-   * If the primary account fails, it tries fallback accounts
+   * Execute a request with Automatic Failover and Human-Like Jitter
    */
   async executeWithFailover<T>(
     requestFn: (accountId: string) => Promise<T>,
     isComplex: boolean = false
   ): Promise<T> {
+    // Layer 7 Stealth: Apply random jitter before routing
+    await humanDelay();
+
     let attempts = 0;
     const triedAccounts = new Set<string>();
 
