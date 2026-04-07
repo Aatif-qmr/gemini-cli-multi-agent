@@ -154,6 +154,7 @@ export * from './config/clientProfiles.js';
 export * from './services/memorySyncService.js';
 export * from './services/nexusRouterService.js';
 export * from './services/multiAccountRotationService.js';
+export * from './services/nexusPermissionService.js';
 
 export * from './skills/skillManager.js';
 export * from './skills/skillLoader.js';
