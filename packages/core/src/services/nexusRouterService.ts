@@ -75,6 +75,10 @@ export class NexusRouterService {
   async initialize(accounts: NexusAccount[], strategy: NexusRoutingStrategy): Promise<void> {
     this.accounts.clear();
     for (const acc of accounts) {
+      // Ensure daily token tracking is initialized
+      if (acc.dailyTokenUsage === undefined) {
+        acc.dailyTokenUsage = 0;
+      }
       this.accounts.set(acc.id, acc);
     }
     this.currentStrategy = strategy;
@@ -84,21 +88,39 @@ export class NexusRouterService {
 
   /**
    * Get the best account for the next request
-   * Implements load balancing and failover logic
+   * Implements load balancing, failover, and stealth throttling
    */
   getBestAccount(isComplex: boolean = false): NexusAccount | undefined {
     if (!this.initialized || this.accounts.size === 0) return undefined;
 
     const strategy = this.currentStrategy!;
-    
-    // If rotation is enabled, use round-robin
+
+    // Step 1: Filter out accounts that hit the daily token cap (Stealth)
+    const healthyAccounts = Array.from(this.accounts.values())
+      .filter(acc => this.isAccountHealthy(acc))
+      .filter(acc => acc.dailyTokenUsage < MAX_DAILY_TOKENS);
+
+    if (healthyAccounts.length === 0) {
+      debugLogger.warn('All accounts have reached daily token limits!');
+      return undefined; // Block requests if all accounts are throttled
+    }
+
+    // Step 2: Enforce Minimum Cooldown (Anti-Rapid-Cycling)
+    const now = Date.now();
+    const lastUsed = Math.max(...healthyAccounts.map(acc => acc.lastUsed || 0));
+    if (now - lastUsed < MIN_COOLDOWN_MS && healthyAccounts.length > 1) {
+      debugLogger.log('Enforcing cooldown to prevent rapid-cycling flags...');
+      // Return the most rested account instead of cycling immediately
+      return healthyAccounts.sort((a, b) => a.lastUsed - b.lastUsed)[0];
+    }
+
+    // Step 3: Standard Routing Logic
     if (strategy.rotationEnabled && strategy.accountOrder) {
       const availableAccounts = strategy.accountOrder
         .map(id => this.accounts.get(id))
-        .filter(acc => acc && this.isAccountHealthy(acc!));
-      
+        .filter(acc => acc && healthyAccounts.includes(acc)) as NexusAccount[];
+
       if (availableAccounts.length === 0) {
-        // Fallback to any healthy account
         return this.findFallbackAccount();
       }
 
@@ -107,16 +129,13 @@ export class NexusRouterService {
       return account || undefined;
     }
 
-    // Otherwise, use strategy-based routing
     let targetId = strategy.defaultAccountId;
     if (isComplex && strategy.complexAccountId) {
       targetId = strategy.complexAccountId;
     }
 
     let account = this.accounts.get(targetId);
-    
-    // If target account is unhealthy, try fallback
-    if (!account || !this.isAccountHealthy(account)) {
+    if (!account || !healthyAccounts.includes(account)) {
       account = this.findFallbackAccount();
     }
 
