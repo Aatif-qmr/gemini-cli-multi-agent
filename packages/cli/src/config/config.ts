@@ -15,6 +15,8 @@ import { skillsCommand } from '../commands/skills.js';
 import { hooksCommand } from '../commands/hooks.js';
 import { projectContextCommand } from '../commands/projectContext.js';
 import { memoryCommand } from '../commands/memory.js';
+import { usageCommand } from '../commands/usage.js';
+import { modelCommand } from '../commands/model.js';
 import { authCommand } from '../commands/auth.js';
 import { systemCommand } from '../commands/system.js';
 import {
@@ -188,6 +190,8 @@ export async function parseArguments(
         hooksCommand,
         projectContextCommand,
         memoryCommand,
+        usageCommand,
+        modelCommand,
         authCommand,
         systemCommand,
       ];
@@ -271,6 +275,8 @@ export async function parseArguments(
   yargsInstance.command(hooksCommand);
   yargsInstance.command(projectContextCommand);
   yargsInstance.command(memoryCommand);
+  yargsInstance.command(usageCommand);
+  yargsInstance.command(modelCommand);
   yargsInstance.command(authCommand);
   yargsInstance.command(systemCommand);
 
