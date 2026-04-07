@@ -8,6 +8,7 @@ import type { CommandModule, ArgumentsCamelCase } from 'yargs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import os from 'node:os';
+import { debugLogger } from '@google/gemini-cli-core';
 
 interface UsageStats {
   instance: string;
