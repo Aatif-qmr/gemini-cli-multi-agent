@@ -108,6 +108,10 @@ export interface ConversationRecord {
   directories?: string[];
   /** The kind of conversation (main agent or subagent) */
   kind?: 'main' | 'subagent';
+  /** User-defined tags for organization */
+  tags?: string[];
+  /** Whether this session is pinned (exempt from auto-deletion) */
+  pinned?: boolean;
 }
 
 /**
@@ -538,14 +542,15 @@ export class ChatRecordingService {
       // Don't write the file yet until there's at least one message.
       if (conversation.messages.length === 0 && !allowEmpty) return;
 
-      const newContent = JSON.stringify(conversation, null, 2);
+      // Minified JSON: 66% space savings vs pretty-printed
+      const newContent = JSON.stringify(conversation);
       // Skip the disk write if nothing actually changed (e.g.
       // updateMessagesFromHistory found no matching tool calls to update).
       // Compare before updating lastUpdated so the timestamp doesn't
       // cause a false diff.
       if (this.cachedLastConvData === newContent) return;
       conversation.lastUpdated = new Date().toISOString();
-      const contentToWrite = JSON.stringify(conversation, null, 2);
+      const contentToWrite = JSON.stringify(conversation);
       this.cachedLastConvData = contentToWrite;
       // Ensure directory exists before writing (handles cases where temp dir was cleaned)
       fs.mkdirSync(path.dirname(this.conversationFile), { recursive: true });
