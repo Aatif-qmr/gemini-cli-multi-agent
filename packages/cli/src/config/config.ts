@@ -17,6 +17,7 @@ import { projectContextCommand } from '../commands/projectContext.js';
 import { memoryCommand } from '../commands/memory.js';
 import { usageCommand } from '../commands/usage.js';
 import { modelCommand } from '../commands/model.js';
+import { nexusCommand } from '../commands/nexus.js';
 import { authCommand } from '../commands/auth.js';
 import { systemCommand } from '../commands/system.js';
 import {
@@ -192,6 +193,7 @@ export async function parseArguments(
         memoryCommand,
         usageCommand,
         modelCommand,
+        nexusCommand,
         authCommand,
         systemCommand,
       ];
@@ -277,6 +279,7 @@ export async function parseArguments(
   yargsInstance.command(memoryCommand);
   yargsInstance.command(usageCommand);
   yargsInstance.command(modelCommand);
+  yargsInstance.command(nexusCommand);
   yargsInstance.command(authCommand);
   yargsInstance.command(systemCommand);
 
